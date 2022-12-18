@@ -54,6 +54,9 @@ class Controller():
             self.frame_count += 1
             self.time += 1/self.frame_rate
             
+            if(self.frame_count%10 != 0):
+                continue
+            
             self.update_tracked_cars(frame)
             self.visualise(frame)
             
