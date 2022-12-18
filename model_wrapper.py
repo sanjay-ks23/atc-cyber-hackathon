@@ -34,12 +34,14 @@ config.gpu_options.allow_growth = True
 
 
 class Vehicle():
-    def __init__(self,id : int, vehicle_class : str, bbox : tuple) -> None:
+    def __init__(self,id : int, vehicle_class : str, bbox : tuple,time_stamp : float = 0) -> None:
         self.id = id
         self.vehicle_class = vehicle_class
         self.bbox = bbox
         self.positions = []
         self.positions.append(self.get_centre_of(bbox))
+        self.time_stamps = []
+        self.time_stamps.append(time_stamp)
         pass
     
     def get_centre_of(self,bbox : tuple) -> tuple:
@@ -47,10 +49,11 @@ class Vehicle():
         y_avg = (bbox[1] + bbox[3])/2
         return (x_avg,y_avg)
     
-    def update_pos(self, bbox : tuple) -> None:
+    def update_pos(self, bbox : tuple, time_stamp : float) -> None:
         self.positions.append(self.get_centre_of(bbox))
         self.bbox = bbox
         self.line_segment = (self.positions[-1],self.positions[-2])
+        self.time_stamps.append(time_stamp)
     
     def intersects(self, other_line_segment : tuple) -> bool:
         other_a = other_line_segment[0]
@@ -68,8 +71,18 @@ class Vehicle():
     def tri_area(a : tuple, b : tuple, c : tuple) -> float:
         return (b[0] - a[0]) * (c[1] - a[1]) -(c[0] - a[0]) * (b[1] - a[1])
     
+    def update_velocity(self) -> None:
+        self.velocity = (abs(self.positions[-1]) - abs(self.positions[-2])) / self.time_stamps[-1] - self.time_stamps[-2]
+    
     def __repr__(self) -> str:
         return f"ID: {self.id} => Type<{self.vehicle_class}>, Co-ordinates : (<{self.positions[-1][0]}, {self.positions[-1][1]}>)"
+    
+    def draw_visualisation(self, img : cv2.Mat, color : tuple) -> None:
+        cv2.rectangle(img, (int(self.bbox[0]), int(self.bbox[1])), (int(self.bbox[2]), int(self.bbox[3])), color, 2)
+        try:
+            cv2.line(img,self.line_segment[0],self.line_segment[1],color,1)
+        except Exception as e:
+            pass
         
 
 class TrackerWrapped:
