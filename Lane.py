@@ -1,4 +1,4 @@
-from typing import Dict, Set, Tuple
+from typing import Dict, List, Set, Tuple
 import cv2
 import numpy as np
 from matplotlib import path as mpPath
@@ -7,23 +7,26 @@ from model_wrapper import Vehicle
 
 class Lane : 
     color = (15, 220, 10)
-    def __init__(self, co_ordinates) -> None:
+    def __init__(self, co_ordinates, id, timing : List[int]) -> None:
         self.co_ordinates: Tuple[Tuple[int, int]] = co_ordinates
+        self.lane_id = id
         self.direction : int = 1 # 1 -> forward, -1-> backward
         self.average_velocity : float = 0 
         self.count_cars : int = 0
         self.area : float = self.get_area()
         self.car_ids : Set[int] = set()
         self.mpPoly = mpPath.Path(np.array(self.co_ordinates))
+        self.car_density = 0
+        self.timing = timing
     
     def __repr__(self) -> str:
-        return f"Cars: {self.count_cars},Avg. Velocity: {self.average_velocity}"
+        return f"{self.lane_id}: Cars: {self.count_cars},Avg. vel: {self.average_velocity:.1f}, Density : {self.car_density}"
     
     def visualize(self, frame:cv2.Mat) -> None :
 
-        cv2.polylines(frame, [np.array(self.co_ordinates, np.int32)], True, self.color, 6)
-        cv2.rectangle(frame, (int(self.co_ordinates[0][0]), int(self.co_ordinates[0][1]-30)), (int(self.co_ordinates[0][0])+(len(self.__repr__()))*10, int(self.co_ordinates[0][1])), self.color, -1)
-        cv2.putText(frame, self.__repr__(),(int(self.co_ordinates[0][0]), int(self.co_ordinates[0][1]-11)),0, 0.6, (255,255,255),1, lineType=cv2.LINE_AA)    
+        cv2.polylines(frame, [np.array(self.co_ordinates, np.int32)], True, self.color, 4)
+        cv2.rectangle(frame, (int(self.co_ordinates[0][0]), int(self.co_ordinates[0][1]-20)), (int(self.co_ordinates[0][0])+(len(self.__repr__()))*7, int(self.co_ordinates[0][1])), self.color, -1)
+        cv2.putText(frame, self.__repr__(),(int(self.co_ordinates[0][0]), int(self.co_ordinates[0][1]-7)),0, 0.4, (255,255,255),1, lineType=cv2.LINE_AA) 
 
     def fuzzy_equals(self,a : float, b: float, threshold : bool = 0.001) -> bool:
         return abs(a-b) <= threshold
@@ -39,6 +42,7 @@ class Lane :
                 sum_velocity += v.velocity
                 self.car_ids.add(v.id)
         self.average_velocity =  sum_velocity / max(self.count_cars,1)
+        self.car_density = int((self.count_cars/self.area)*100000)
 
     def isInLane (self, vehicle: Vehicle) -> bool :
         pt1 = self.co_ordinates[0]

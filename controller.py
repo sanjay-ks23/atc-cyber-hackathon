@@ -2,7 +2,7 @@ from typing import Dict, List
 from Lane import Lane
 from model_wrapper import Vehicle,TrackerWrapped
 import cv2
-
+import json
 
 
 
@@ -11,13 +11,24 @@ class Controller():
         self.source = cv2.VideoCapture(feed_source)
         self.lanes : List[Lane] = [] # Add code to load in lanes
         self.tracked : Dict[int,Vehicle]= {}
-        self.detected = {}
+        self.detected : Dict[int,Vehicle] = {}
         self.time = 0
         self.frame_count = 0
         self.Tracker = TrackerWrapped()
         self.last_deleted = 0
         self.frame_rate = self.source.get(cv2.CAP_PROP_FPS)
+        self.lane_avg_densities : List[float] = []
         
+    def load_lanes_from_json(self,fp : str):
+        with open(fp) as f:
+            data : dict = json.load(f)
+            f.close()
+        for key in data["lanes"].keys():
+            pos = data["lanes"][key]["pos"]
+            timing = data["lanes"][key]["timing"]
+            self.lanes.append(Lane(pos,key,timing))
+        self.lane_avg_densities = [0.0 for i in range(len(self.lanes))]
+        self.intersection = Lane(data["intersection"]["pos"],"intersection",[100,100])
     
     def update_tracked_cars(self, frame : cv2.Mat) -> None:
         self.detected = self.Tracker.track_frame(frame)
@@ -38,20 +49,28 @@ class Controller():
     def update_lane_data(self):
         for lane in self.lanes : 
             lane.update_lane(self.tracked)
+        
+        self.intersection.update_lane(self.tracked)
     
     def visualise(self, frame : cv2.Mat) -> None:
-        for key in self.tracked:
-            if(key in self.lanes[0].car_ids):
-                self.tracked[key].draw_visualisation(frame,draw_complex=True)
-            else:
-                self.tracked[key].draw_visualisation(frame,draw_complex=False)
-            
         
         for lane in self.lanes : 
             lane.visualize(frame)
+        self.intersection.visualize(frame)
+        
+        in_lane_ids = []
+        for lane_ids in [lane.car_ids for lane in self.lanes]:
+            in_lane_ids += lane_ids
+        # print(in_lane_ids)
+        for key in self.tracked:
+            if(key in in_lane_ids):
+                self.tracked[key].draw_visualisation(frame,draw_complex=True)
+            else:
+                self.tracked[key].draw_visualisation(frame,draw_complex=False)
         pass
     
     def get_signal_statuses(self):
+        
         pass
     
     def main_loop(self) -> None:
