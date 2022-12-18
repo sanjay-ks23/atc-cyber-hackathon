@@ -33,6 +33,45 @@ config.gpu_options.allow_growth = True
 
 
 
+class Vehicle():
+    def __init__(self,id : int, vehicle_class : str, bbox : tuple) -> None:
+        self.id = id
+        self.vehicle_class = vehicle_class
+        self.bbox = bbox
+        self.positions = []
+        self.positions.append(self.get_centre_of(bbox))
+        pass
+    
+    def get_centre_of(self,bbox : tuple) -> tuple:
+        x_avg = (bbox[0] + bbox[2])/2
+        y_avg = (bbox[1] + bbox[3])/2
+        return (x_avg,y_avg)
+    
+    def update_pos(self, bbox : tuple) -> None:
+        self.positions.append(self.get_centre_of(bbox))
+        self.bbox = bbox
+        self.line_segment = (self.positions[-1],self.positions[-2])
+    
+    def intersects(self, other_line_segment : tuple) -> bool:
+        other_a = other_line_segment[0]
+        other_b = other_line_segment[1]
+        other_a_area = self.tri_area(self.line_segment[0],self.line_segment[1],other_a)
+        other_b_area = self.tri_area(self.line_segment[0],self.line_segment[1],other_b)
+        
+        if(other_b_area >= 0 and other_a_area <= 0):
+            return True
+        elif(other_a_area <= 0 and other_b_area >= 0):
+            return True
+        else:
+            return False
+    
+    def tri_area(a : tuple, b : tuple, c : tuple) -> float:
+        return (b[0] - a[0]) * (c[1] - a[1]) -(c[0] - a[0]) * (b[1] - a[1])
+    
+    def __repr__(self) -> str:
+        return f"ID: {self.id} => Type<{self.vehicle_class}>, Co-ordinates : (<{self.positions[-1][0]}, {self.positions[-1][1]}>)"
+        
+
 class TrackerWrapped:
     '''
     Class to Wrap ANY detector  of YOLO type with DeepSORT
@@ -176,7 +215,7 @@ class TrackerWrapped:
         
         cv2.destroyAllWindows()
 
-    def track_frame(self,img : cv2.Mat, output:str, count_objects:bool=False, verbose:int = 0) -> dict:
+    def track_frame(self,img : cv2.Mat, count_objects:bool=False, verbose:int = 0) -> dict:
         """Generates tracking data for given frame
 
         Args:
@@ -240,6 +279,8 @@ class TrackerWrapped:
                 continue 
             bbox = track.to_tlbr()
             class_name = track.get_class()
-            print("Tracker ID: {}, Class: {},  BBox Coords (xmin, ymin, xmax, ymax): {}".format(str(track.track_id), class_name, (int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3]))))
-            results[track.track_id] = [class_name,bbox]
+            # print("Tracker ID: {}, Class: {},  BBox Coords (xmin, ymin, xmax, ymax): {}".format(str(track.track_id), class_name, (int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3]))))
+            results[track.track_id] = Vehicle(track.track_id,
+                                              class_name,
+                                              bbox)
         return results
