@@ -1,14 +1,16 @@
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from Lane import Lane
 from model_wrapper import Vehicle,TrackerWrapped
 import cv2
 import json
-
+import numpy as np
 
 
 class Controller():
     def __init__(self,feed_source, *args,**kwargs):
         self.source = cv2.VideoCapture(feed_source)
+        self.frame_dimensions= np.array((self.source.get(cv2.CAP_PROP_FRAME_WIDTH),
+        self.source.get(cv2.CAP_PROP_FRAME_HEIGHT)),dtype=np.int32)
         self.lanes : List[Lane] = [] # Add code to load in lanes
         self.tracked : Dict[int,Vehicle]= {}
         self.detected : Dict[int,Vehicle] = {}
@@ -18,15 +20,16 @@ class Controller():
         self.last_deleted = 0
         self.frame_rate = self.source.get(cv2.CAP_PROP_FPS)
         self.lane_avg_densities : List[float] = []
+        self.codec = cv2.VideoWriter_fourcc(*"XVID")
         
     def load_lanes_from_json(self,fp : str):
         with open(fp) as f:
             data : dict = json.load(f)
             f.close()
-        for key in data["lanes"].keys():
-            pos = data["lanes"][key]["pos"]
-            timing = data["lanes"][key]["timing"]
-            self.lanes.append(Lane(pos,key,timing))
+        for cnt, lane in enumerate(data["lanes"]):
+            pos = lane["pos"]
+            timing = lane["timing"]
+            self.lanes.append(Lane(pos, cnt, timing))
         self.lane_avg_densities = [0.0 for i in range(len(self.lanes))]
         self.intersection = Lane(data["intersection"]["pos"],"intersection",[100,100])
     
@@ -53,9 +56,17 @@ class Controller():
         self.intersection.update_lane(self.tracked)
     
     def visualise(self, frame : cv2.Mat) -> None:
-        
+        pt1 = np.array((self.frame_dimensions[0]-400, (22*(len(self.lanes)+1)+20)),dtype=np.int32)
+        pt2 = np.array((self.frame_dimensions[0], 0),dtype=np.int32)
+        cv2.rectangle(frame,pt1,pt2, (255, 255, 255), -1)
+
         for lane in self.lanes : 
             lane.visualize(frame)
+            stat = f"Lane{lane.lane_id}: Density: {lane.car_density} Duration: {lane.uptime:.2f}"
+            cv2.putText(frame, stat, np.array((self.frame_dimensions[0]-400, 22*(lane.lane_id+1)),dtype=np.int32), 0, 0.7, (0, 0, 0),1, lineType=cv2.LINE_AA)
+
+        stat = f"Intersection: Density: {self.intersection.car_density} Speed: {self.intersection.average_velocity:.2f}"
+        cv2.putText(frame, stat, np.array((self.frame_dimensions[0]-400, 22*(len(self.lanes)+1)), dtype=np.int32), 0, 0.7, (0, 0, 0), 1, lineType=cv2.LINE_AA)
         self.intersection.visualize(frame)
         
         in_lane_ids = []
@@ -73,7 +84,8 @@ class Controller():
         
         pass
     
-    def main_loop(self) -> None:
+    def main_loop(self, out:str=None) -> None:
+        if out : writer = cv2.VideoWriter(out, self.codec, self.frame_rate/10, self.frame_dimensions)
         while True:
             return_value, frame = self.source.read()
             if not return_value:
@@ -89,6 +101,12 @@ class Controller():
             self.update_lane_data()
             self.visualise(frame)
             
+            frame = np.asarray(frame)
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
             cv2.imshow("Video out",frame)
             if cv2.waitKey(1) & 0xFF == ord('q'): break
+
+            writer.write(frame)
+
             

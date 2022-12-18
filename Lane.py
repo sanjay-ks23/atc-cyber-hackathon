@@ -7,8 +7,8 @@ from model_wrapper import Vehicle
 
 class Lane : 
     color = (15, 220, 10)
-    def __init__(self, co_ordinates, id, timing : List[int]) -> None:
-        self.co_ordinates: Tuple[Tuple[int, int]] = co_ordinates
+    def __init__(self, co_ordinates: Tuple[Tuple[int, int]], id:int, timing : Tuple[int, int]) -> None:
+        self.co_ordinates = co_ordinates
         self.lane_id = id
         self.direction : int = 1 # 1 -> forward, -1-> backward
         self.average_velocity : float = 0 
@@ -18,15 +18,15 @@ class Lane :
         self.mpPoly = mpPath.Path(np.array(self.co_ordinates))
         self.car_density = 0
         self.timing = timing
+        self.uptime = timing[1]
     
     def __repr__(self) -> str:
-        return f"{self.lane_id}: Cars: {self.count_cars},Avg. vel: {self.average_velocity:.1f}, Density : {self.car_density}"
+        return f"{self.lane_id}: Cars: {self.count_cars},Vel:{self.average_velocity:.1f},Density:{self.car_density}"
     
     def visualize(self, frame:cv2.Mat) -> None :
-
         cv2.polylines(frame, [np.array(self.co_ordinates, np.int32)], True, self.color, 4)
-        cv2.rectangle(frame, (int(self.co_ordinates[0][0]), int(self.co_ordinates[0][1]-20)), (int(self.co_ordinates[0][0])+(len(self.__repr__()))*7, int(self.co_ordinates[0][1])), self.color, -1)
-        cv2.putText(frame, self.__repr__(),(int(self.co_ordinates[0][0]), int(self.co_ordinates[0][1]-7)),0, 0.4, (255,255,255),1, lineType=cv2.LINE_AA) 
+        cv2.rectangle(frame, (int(self.co_ordinates[-1][0]), int(self.co_ordinates[-1][1]-20)), (int(self.co_ordinates[-1][0])+(len(self.__repr__()))*6, int(self.co_ordinates[-1][1])), self.color, -1)
+        cv2.putText(frame, self.__repr__(),(int(self.co_ordinates[-1][0]), int(self.co_ordinates[-1][1]-7)),0, 0.37, (255,255,255),1, lineType=cv2.LINE_AA) 
 
     def fuzzy_equals(self,a : float, b: float, threshold : bool = 0.001) -> bool:
         return abs(a-b) <= threshold
@@ -43,6 +43,8 @@ class Lane :
                 self.car_ids.add(v.id)
         self.average_velocity =  sum_velocity / max(self.count_cars,1)
         self.car_density = int((self.count_cars/self.area)*100000)
+        time = min(self.timing[1] * (self.car_density / 30), self.timing[1])
+        self.uptime = time if time > self.timing[0] else self.timing[0]
 
     def isInLane (self, vehicle: Vehicle) -> bool :
         pt1 = self.co_ordinates[0]
