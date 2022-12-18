@@ -4,7 +4,7 @@ A Moduele which binds Yolov7 repo with Deepsort with modifications
 
 import math
 import os
-from typing import Tuple
+from typing import List, Tuple
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # comment out below line to enable tensorflow logging outputs
 import time
 import tensorflow as tf
@@ -40,7 +40,7 @@ class Vehicle():
         self.id = id
         self.vehicle_class = vehicle_class
         self.bbox = bbox
-        self.positions = []
+        self.positions : List[Tuple[int, int]] = []
         self.positions.append(self.get_centre_of(bbox))
         self.time_stamps = []
         self.time_stamps.append(time_stamp)
@@ -87,7 +87,7 @@ class Vehicle():
     def __repr__(self) -> str:
         return f"{self.id}, Class: {self.vehicle_class}, Velocity:{self.velocity}"
     
-    def draw_visualisation(self, img : cv2.Mat, color : tuple) -> None:
+    def draw_visualisation(self, img : cv2.Mat, draw_complex : bool = True) -> None:
         cmap = plt.get_cmap('tab20b') #initialize color map
         colors = [cmap(i)[:3] for i in np.linspace(0, 1, 20)]
         class_name = self.vehicle_class
@@ -95,9 +95,12 @@ class Vehicle():
         track_id = self.id
         color = colors[int(track_id) % len(colors)]  # draw bbox on screen
         color = [i * 255 for i in color]
-        cv2.rectangle(img, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), color, 2)
-        cv2.rectangle(img, (int(bbox[0]), int(bbox[1]-15)),  (int(bbox[0])+(len(self.__repr__()))*5 ,int(bbox[1])), color, -1)
-        cv2.putText(img,self.__repr__(),(int(bbox[0]), int(bbox[1]-6)),0, 0.3, (255,255,255),1, lineType=cv2.LINE_AA)   
+        if draw_complex:
+            cv2.rectangle(img, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), color, 2)
+            cv2.rectangle(img, (int(bbox[0]), int(bbox[1]-15)),  (int(bbox[0])+(len(self.__repr__()))*5 ,int(bbox[1])), color, -1)
+            cv2.putText(img,self.__repr__(),(int(bbox[0]), int(bbox[1]-6)),0, 0.3, (255,255,255),1, lineType=cv2.LINE_AA) 
+        else:
+            cv2.rectangle(img, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0,255,0), 2)
 
 class TrackerWrapped:
     '''

@@ -1,3 +1,4 @@
+from typing import Dict, List
 from Lane import Lane
 from model_wrapper import Vehicle,TrackerWrapped
 import cv2
@@ -8,8 +9,8 @@ import cv2
 class Controller():
     def __init__(self,feed_source, *args,**kwargs):
         self.source = cv2.VideoCapture(feed_source)
-        self.lanes = None # Add code to load in lanes
-        self.tracked = {}
+        self.lanes : List[Lane] = [] # Add code to load in lanes
+        self.tracked : Dict[int,Vehicle]= {}
         self.detected = {}
         self.time = 0
         self.frame_count = 0
@@ -35,11 +36,19 @@ class Controller():
                     self.tracked.pop(key)
     
     def update_lane_data(self):
-        pass
+        for lane in self.lanes : 
+            lane.update_lane(self.tracked)
     
     def visualise(self, frame : cv2.Mat) -> None:
-        for key in self.detected.keys():
-            self.tracked[key].draw_visualisation(frame,(0,255,0))
+        for key in self.tracked:
+            if(key in self.lanes[0].car_ids):
+                self.tracked[key].draw_visualisation(frame,draw_complex=True)
+            else:
+                self.tracked[key].draw_visualisation(frame,draw_complex=False)
+            
+        
+        for lane in self.lanes : 
+            lane.visualize(frame)
         pass
     
     def get_signal_statuses(self):
@@ -58,6 +67,7 @@ class Controller():
                 continue
             
             self.update_tracked_cars(frame)
+            self.update_lane_data()
             self.visualise(frame)
             
             cv2.imshow("Video out",frame)

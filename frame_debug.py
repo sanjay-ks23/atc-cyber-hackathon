@@ -1,11 +1,14 @@
 import cv2
 
 from model_wrapper import TrackerWrapped,Vehicle
+from Lane import Lane
 from controller import Controller
-PATH = r"C:\Users\zahra\Documents\Cyber Hackathon\traffic controller\atc-rework\data\rene_video.mov"
+PATH = r".\data\rene_video.mov"
+POINTS = ((419, 474), (557, 483), (642, 229), (559, 224))
 
 def main():
     con = Controller(PATH)
+    con.lanes.append(Lane(POINTS))
     con.main_loop()
             
 
