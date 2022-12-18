@@ -2,7 +2,9 @@
 A Moduele which binds Yolov7 repo with Deepsort with modifications
 '''
 
+import math
 import os
+from typing import Tuple
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # comment out below line to enable tensorflow logging outputs
 import time
 import tensorflow as tf
@@ -42,6 +44,7 @@ class Vehicle():
         self.positions.append(self.get_centre_of(bbox))
         self.time_stamps = []
         self.time_stamps.append(time_stamp)
+        self.velocity = 0
         pass
     
     def get_centre_of(self,bbox : tuple) -> tuple:
@@ -54,6 +57,7 @@ class Vehicle():
         self.bbox = bbox
         self.line_segment = (self.positions[-1],self.positions[-2])
         self.time_stamps.append(time_stamp)
+        self.update_velocity()
     
     def intersects(self, other_line_segment : tuple) -> bool:
         other_a = other_line_segment[0]
@@ -72,18 +76,28 @@ class Vehicle():
         return (b[0] - a[0]) * (c[1] - a[1]) -(c[0] - a[0]) * (b[1] - a[1])
     
     def update_velocity(self) -> None:
-        self.velocity = (abs(self.positions[-1]) - abs(self.positions[-2])) / self.time_stamps[-1] - self.time_stamps[-2]
-    
+        x1,y1 = self.positions[-1]
+        x2,y2 = self.positions[-2]
+        dx = (x2 - x1)**2
+        dy = (y2 - y1)**2
+        ds = math.sqrt(dx + dy)
+        dt = self.time_stamps[-1] - self.time_stamps[-2]
+        self.velocity = math.ceil((ds) / dt)
+            
     def __repr__(self) -> str:
-        return f"ID: {self.id} => Type<{self.vehicle_class}>, Co-ordinates : (<{self.positions[-1][0]}, {self.positions[-1][1]}>)"
+        return f"{self.id}, Class: {self.vehicle_class}, Velocity:{self.velocity}"
     
     def draw_visualisation(self, img : cv2.Mat, color : tuple) -> None:
-        cv2.rectangle(img, (int(self.bbox[0]), int(self.bbox[1])), (int(self.bbox[2]), int(self.bbox[3])), color, 2)
-        try:
-            cv2.line(img,self.line_segment[0],self.line_segment[1],color,1)
-        except Exception as e:
-            pass
-        
+        cmap = plt.get_cmap('tab20b') #initialize color map
+        colors = [cmap(i)[:3] for i in np.linspace(0, 1, 20)]
+        class_name = self.vehicle_class
+        bbox = self.bbox
+        track_id = self.id
+        color = colors[int(track_id) % len(colors)]  # draw bbox on screen
+        color = [i * 255 for i in color]
+        cv2.rectangle(img, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), color, 2)
+        cv2.rectangle(img, (int(bbox[0]), int(bbox[1]-15)),  (int(bbox[0])+(len(self.__repr__()))*5 ,int(bbox[1])), color, -1)
+        cv2.putText(img,self.__repr__(),(int(bbox[0]), int(bbox[1]-6)),0, 0.3, (255,255,255),1, lineType=cv2.LINE_AA)   
 
 class TrackerWrapped:
     '''
