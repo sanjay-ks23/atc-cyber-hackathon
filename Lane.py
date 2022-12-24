@@ -8,6 +8,19 @@ from model_wrapper import Vehicle
 class Lane : 
     color = (15, 220, 10)
     def __init__(self, co_ordinates: Tuple[Tuple[int, int]], id:int, timing : Tuple[int, int]) -> None:
+        """Lane class to hold data related to a lane in intersection.
+        Also contains methods to update the data.
+
+        Args:
+            co_ordinates (Tuple[Tuple[int, int]]): List of (x,y) pixel coordintes to define the bounding box for each lane
+            id (int): the id associated with the lane
+            timing (Tuple[int, int]): A tuple of [min, max] timings for a lane.
+            
+            The timing is set based on the immediate density of traffic in the lane.
+            the average_uptime variable holds the sliding average of this over the LAST_TIME_MAX updates
+            
+            NOTE: CURRENTLY ONLY WORKS WITH QUADRILATERALS AS LANES
+        """
         self.co_ordinates = co_ordinates
         self.lane_id = id
         self.direction : int = 1 # 1 -> forward, -1-> backward
@@ -19,11 +32,19 @@ class Lane :
         self.car_density = 0
         self.timing = timing
         self.uptime = timing[1]
+        self.average_uptime = timing[1]
+        self.last_times = []
+        self.LAST_TIMES_MAX = 5
     
     def __repr__(self) -> str:
         return f"{self.lane_id}: Cars: {self.count_cars},Vel:{self.average_velocity:.1f},Density:{self.car_density}"
     
     def visualize(self, frame:cv2.Mat) -> None :
+        """Draws the bounding box as well as basic data for the lane
+
+        Args:
+            frame (cv2.Mat): Frame to draw onto
+        """
         cv2.polylines(frame, [np.array(self.co_ordinates, np.int32)], True, self.color, 4)
         cv2.rectangle(frame, (int(self.co_ordinates[-1][0]), int(self.co_ordinates[-1][1]-20)), (int(self.co_ordinates[-1][0])+(len(self.__repr__()))*6, int(self.co_ordinates[-1][1])), self.color, -1)
         cv2.putText(frame, self.__repr__(),(int(self.co_ordinates[-1][0]), int(self.co_ordinates[-1][1]-7)),0, 0.37, (255,255,255),1, lineType=cv2.LINE_AA) 
@@ -32,6 +53,11 @@ class Lane :
         return abs(a-b) <= threshold
 
     def update_lane(self, tracked_dict : Dict[int, Vehicle]) -> None:
+        """Updates a lanes data given a dictionary of Vehicle objects to update with.
+
+        Args:
+            tracked_dict (Dict[int, Vehicle]): The dictionary containing tracker_id, Vehicle pairs to update from.
+        """
         self.count_cars = 0
         sum_velocity = 0
         self.car_ids = set()
@@ -45,8 +71,20 @@ class Lane :
         self.car_density = int((self.count_cars/self.area)*100000)
         time = min(self.timing[1] * (self.car_density / 30), self.timing[1])
         self.uptime = time if time > self.timing[0] else self.timing[0]
+        self.last_times.append(self.uptime)
+        if(len(self.last_times) > self.LAST_TIMES_MAX): self.last_times.pop(0)
+        
+        self.average_uptime = np.average(self.last_times)
 
     def isInLane (self, vehicle: Vehicle) -> bool :
+        """Checks if the given vehicle object is in the current lane or not
+
+        Args:
+            vehicle (Vehicle): Vehicle to check
+
+        Returns:
+            bool: True if it is in the lane, False if not.
+        """
         pt1 = self.co_ordinates[0]
         pt2 = self.co_ordinates[1]
         pt3 = self.co_ordinates[2]
@@ -62,6 +100,7 @@ class Lane :
             return True
         
     def isInLane2(self,vehicle : Vehicle) -> bool:
+        # Alternative implementation
         vehicle_point = vehicle.positions[-1]
         return self.mpPoly.contains_point(vehicle_point)
     
@@ -81,6 +120,7 @@ class Lane :
 
 
 if __name__ == "__main__" :
+    # test code, will not be run when imported
     POINTS = ((419, 474), (557, 483), (642, 229), (559, 224))
     
     l = Lane(POINTS)
