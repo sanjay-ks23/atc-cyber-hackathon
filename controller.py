@@ -130,14 +130,16 @@ class Controller():
         # Only when working with hardware
         pass
     
-    def main_loop(self, out:str=None) -> None:
+    def main_loop(self, visualise: bool = True, out:str=None) -> None:
         """Driver loop to fetch input and run update methods on.
         Also visualises and can write visualised frames to a file.
 
         Args:
+            visualise (bool, optional) : Whether to show a visualisation window or not.
+            Defaults to True.
+            
             out (str, optional): filepath to write output of visualisations to.
-            Leave default to not write anything.
-            Defaults to None.
+            Leave default to not write anything. Defaults to None.
         """
         if out : writer = cv2.VideoWriter(out, self.codec, self.frame_rate/FRAME_SKIP, self.frame_dimensions)
         while True:
@@ -154,13 +156,15 @@ class Controller():
             # Main update functions, must be called in this order
             self.update_tracked_cars(frame)
             self.update_lane_data()
+            
             self.visualise(frame)
             
             frame = np.asarray(frame)
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
-            cv2.imshow("Video out",frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'): break
+            if visualise:
+                cv2.imshow("Video out",frame)
+                if cv2.waitKey(1) & 0xFF == ord('q'): break
 
             if out: writer.write(frame)
 

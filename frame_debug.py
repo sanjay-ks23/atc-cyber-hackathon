@@ -9,7 +9,7 @@ PATH = r".\media\rene_video.mov"
 def main():
     con = Controller(PATH)
     con.load_lanes_from_json("lanes.json")
-    con.main_loop(out="./out.mp4")
+    con.main_loop(visualise=True,out="./out.mp4")
             
 
 if __name__ == '__main__':
