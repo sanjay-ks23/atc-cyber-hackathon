@@ -37,6 +37,14 @@ config.gpu_options.allow_growth = True
 
 class Vehicle():
     def __init__(self,id : int, vehicle_class : str, bbox : tuple,time_stamp : float = 0) -> None:
+        """Class that contains data and methods associated with a tracked/detected vehicle.
+
+        Args:
+            id (int): vehicle id assigned from
+            vehicle_class (str): class of vehicle based on COCO class name
+            bbox (tuple): bounding box defined by 2 (x,y) coordinates to form a rectangle
+            time_stamp (float, optional): time at which it was created. Defaults to 0.
+        """
         self.id = id
         self.vehicle_class = vehicle_class
         self.bbox = bbox
@@ -48,11 +56,25 @@ class Vehicle():
         pass
     
     def get_centre_of(self,bbox : tuple) -> tuple:
+        """Gets the centre of a bounding box
+
+        Args:
+            bbox (tuple): Bounding box defined as two corners of (x,y) coordinates
+
+        Returns:
+            tuple: (x,y) coordinate representing the centre
+        """
         x_avg = (bbox[0] + bbox[2])/2
         y_avg = (bbox[1] + bbox[3])/2
         return (x_avg,y_avg)
     
     def update_pos(self, bbox : tuple, time_stamp : float) -> None:
+        """Updates the position of the car and accordingly adds time stamp of position change
+
+        Args:
+            bbox (tuple): _description_
+            time_stamp (float): _description_
+        """
         self.positions.append(self.get_centre_of(bbox))
         self.bbox = bbox
         self.line_segment = (self.positions[-1],self.positions[-2])
@@ -60,6 +82,15 @@ class Vehicle():
         self.update_velocity()
     
     def intersects(self, other_line_segment : tuple) -> bool:
+        """DO NOT USE
+        Checks if last move by a vehicle intersects a line segment
+
+        Args:
+            other_line_segment (tuple): line segment defined using two (x,y) points
+
+        Returns:
+            bool: True or False based on if intersection occured
+        """
         other_a = other_line_segment[0]
         other_b = other_line_segment[1]
         other_a_area = self.tri_area(self.line_segment[0],self.line_segment[1],other_a)
@@ -76,6 +107,8 @@ class Vehicle():
         return (b[0] - a[0]) * (c[1] - a[1]) -(c[0] - a[0]) * (b[1] - a[1])
     
     def update_velocity(self) -> None:
+        """Updates velocity of vehicle in pixels/sec
+        """
         x1,y1 = self.positions[-1]
         x2,y2 = self.positions[-2]
         dx = (x2 - x1)**2
@@ -88,6 +121,15 @@ class Vehicle():
         return f"{self.id}, Class: {self.vehicle_class}, Velocity:{self.velocity}"
     
     def draw_visualisation(self, img : cv2.Mat, draw_complex : bool = True) -> None:
+        """Draws visualisation of car on given frame.
+
+        Args:
+            img (cv2.Mat): frame to draw on
+            draw_complex (bool, optional): Whether to add extra details to visualisation. Defaults to True.
+            
+            Leave draw_complex as true to get extra details like id, velocity, vehicle class.
+            Otherwise, a simple box is drawn.
+        """
         cmap = plt.get_cmap('tab20b') #initialize color map
         colors = [cmap(i)[:3] for i in np.linspace(0, 1, 20)]
         class_name = self.vehicle_class
