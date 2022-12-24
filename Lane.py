@@ -28,6 +28,7 @@ class Lane :
         self.average_velocity : float = 0 
         self.count_cars : int = 0
         self.area : float = self.get_area()
+        # car_ids is set of all unique car_ids in the lane
         self.car_ids : Set[int] = set()
         self.mpPoly = mpPath.Path(np.array(self.co_ordinates))
         self.car_density = 0
@@ -35,6 +36,7 @@ class Lane :
         self.uptime = timing[1]
         self.average_uptime = timing[1]
         self.last_times = []
+        # Change LAST_TIMES_MAX to change the size of the window for the sliding average
         self.LAST_TIMES_MAX = 5
     
     def __repr__(self) -> str:
