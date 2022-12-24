@@ -18,7 +18,7 @@ class Controller():
         self.source = cv2.VideoCapture(feed_source)
         self.frame_dimensions= np.array((self.source.get(cv2.CAP_PROP_FRAME_WIDTH),
         self.source.get(cv2.CAP_PROP_FRAME_HEIGHT)),dtype=np.int32)
-        self.lanes : List[Lane] = [] # Add code to load in lanes
+        self.lanes : List[Lane] = []
         self.tracked : Dict[int,Vehicle]= {}
         self.detected : Dict[int,Vehicle] = {}
         self.time = 0
@@ -49,18 +49,29 @@ class Controller():
         """Updates car tracking info given frame from camera.
         Updates the internal self.tracked dictionary containing tracked cars.
         Cars are represented internally using the Vehicle class.
+        
         Args:
             frame (cv2.Mat): Input frame to process and track cars from
         """
+        # Get all detected cars from YOLO + deepSORT
         self.detected = self.Tracker.track_frame(frame)
         tracked_ids = list(self.tracked.keys())
         result_ids = list(self.detected.keys())
+        
+        # Compare the cars detected with cars tracked so far.
+        # If detected car is not being tracked, add it to tracked dict
+        # If already present, update the corresponding Car instance.
         for key in result_ids:
             car = self.detected[key]
             if key in tracked_ids:
                 self.tracked[key].update_pos(car.bbox,self.time)
             else:
                 self.tracked[key] = Vehicle(car.id,car.vehicle_class,car.bbox,self.time)
+        
+        # Every second, check and delete cars that are no longer in the detected list, but are present
+        # in the tracked list
+        # TODO make it so that cars are deleted not off of a global timer but rather time since last detection
+        # Should help improve tracker stability. Might require changes to Vehicle class.
         if(self.frame_count - self.last_deleted >= self.frame_rate):
             self.last_deleted = self.frame_count
             for key in tracked_ids:
@@ -78,7 +89,7 @@ class Controller():
     def visualise(self, frame : cv2.Mat) -> None:
         """Draws visualisation of the data stored in the Controller class onto the given frame.
         This includes:
-            - Lane data on top left corner, including wait times calculated
+            - Lane data on top right corner, including wait times calculated
             - Car data on tracked cars
             - Lane data on lane outlines
         
@@ -86,6 +97,8 @@ class Controller():
         Args:
             frame (cv2.Mat): frame to draw visualisation onto
         """
+        
+        # Draw white box in top right
         pt1 = np.array((self.frame_dimensions[0]-400, (22*(len(self.lanes)+1)+20)),dtype=np.int32)
         pt2 = np.array((self.frame_dimensions[0], 0),dtype=np.int32)
         cv2.rectangle(frame,pt1,pt2, (255, 255, 255), -1)
@@ -93,12 +106,15 @@ class Controller():
         for lane in self.lanes : 
             lane.visualize(frame)
             stat = f"Lane{lane.lane_id}: Density: {lane.car_density} Duration: {lane.average_uptime:.2f}"
+            # Put lane statistics on top right using lane id to get y-coord
             cv2.putText(frame, stat, np.array((self.frame_dimensions[0]-400, 22*(lane.lane_id+1)),dtype=np.int32), 0, 0.7, (0, 0, 0),1, lineType=cv2.LINE_AA)
 
+        # Put intersection statistics on top right
         stat = f"Intersection: Density: {self.intersection.car_density} Speed: {self.intersection.average_velocity:.2f}"
         cv2.putText(frame, stat, np.array((self.frame_dimensions[0]-400, 22*(len(self.lanes)+1)), dtype=np.int32), 0, 0.7, (0, 0, 0), 1, lineType=cv2.LINE_AA)
         self.intersection.visualize(frame)
         
+        # Draw bounding boxes for cars based on whether they are or arent in a lane
         in_lane_ids = []
         for lane_ids in [lane.car_ids for lane in self.lanes]:
             in_lane_ids += lane_ids
@@ -135,6 +151,7 @@ class Controller():
             if(self.frame_count%FRAME_SKIP != 0):
                 continue
             
+            # Main update functions, must be called in this order
             self.update_tracked_cars(frame)
             self.update_lane_data()
             self.visualise(frame)

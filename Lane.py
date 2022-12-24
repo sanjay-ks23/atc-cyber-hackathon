@@ -20,6 +20,7 @@ class Lane :
             the average_uptime variable holds the sliding average of this over the LAST_TIME_MAX updates
             
             NOTE: CURRENTLY ONLY WORKS WITH QUADRILATERALS AS LANES
+            to use with polygons, maybe update to use isInLane2
         """
         self.co_ordinates = co_ordinates
         self.lane_id = id
